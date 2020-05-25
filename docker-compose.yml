@@ -1,0 +1,29 @@
+# Use postgres/example user/password credentials
+version: '3.1'
+
+services:
+  user-service:
+    build: .
+    depends_on: 
+        - db
+    ports: 
+        - 50053:50051
+    environment: 
+        MICRO_ADDRESS: ":50051"
+        DB_HOST: "host=127.0.0.1 port=5432 user=example dbname=users password=example sslmode=disable"
+
+  db:
+    image: postgres
+    restart: always
+    ports: 
+        - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_USER: example
+      POSTGRES_DB: users
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
