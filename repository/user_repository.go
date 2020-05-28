@@ -8,10 +8,11 @@ import (
 )
 
 type UserRepository interface {
-	Create(context.Context, *models.User) error
+	Create(context.Context, *models.User) (*models.User, error)
 	Get(context.Context, string) (*models.User, error)
 	GetAll(context.Context) (models.Users, error)
 	GetByEmailAndPassword(context.Context, *models.User) (*models.User, error)
+	GetByEmail(context.Context, *models.User) (*models.User, error)
 }
 
 func NewUserRepository(client datastore.DatastoreClient) UserRepository {
@@ -24,14 +25,14 @@ type userRepository struct {
 	dbClient datastore.DatastoreClient
 }
 
-func (repo *userRepository) Create(ctx context.Context, user *models.User) error {
+func (repo *userRepository) Create(ctx context.Context, user *models.User) (*models.User, error) {
 
-	err := repo.dbClient.Create(ctx, user)
+	result, err := repo.dbClient.Create(ctx, user)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return result, nil
 }
 
 func (repo *userRepository) Get(ctx context.Context, id string) (*models.User, error) {
@@ -56,5 +57,13 @@ func (repo *userRepository) GetByEmailAndPassword(ctx context.Context, user *mod
 		return nil, err
 	}
 
+	return user, nil
+}
+
+func (repo *userRepository) GetByEmail(ctx context.Context, user *models.User) (*models.User, error) {
+	user, err := repo.dbClient.GetByEmail(ctx, user)
+	if err != nil {
+		return nil, err
+	}
 	return user, nil
 }

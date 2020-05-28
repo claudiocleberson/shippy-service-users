@@ -11,10 +11,11 @@ import (
 )
 
 type DatastoreClient interface {
-	Create(context.Context, *models.User) error
+	Create(context.Context, *models.User) (*models.User, error)
 	Get(context.Context, string) (*models.User, error)
 	GetAll(context.Context) (models.Users, error)
 	GetByEmailAndPassword(context.Context, *models.User) (*models.User, error)
+	GetByEmail(context.Context, *models.User) (*models.User, error)
 	Auth(context.Context, *models.User) error
 	ValidateToken(context.Context, *models.Token) (bool, error)
 }
@@ -57,22 +58,28 @@ func connectDatabaseCluster(dbstring string) *gorm.DB {
 	return db
 }
 
-func (d *datastoreClient) Create(ctx context.Context, user *models.User) error {
+func (d *datastoreClient) Create(ctx context.Context, user *models.User) (*models.User, error) {
 
-	if err := d.db.Create(user).Error; err != nil {
-		return err
+	result := d.db.Create(&user)
+	if result.Error != nil {
+
+		return nil, result.Error
 	}
-	return nil
+
+	//Hide password
+	user.Password = ""
+
+	return user, nil
 }
 
 func (d *datastoreClient) Get(ctx context.Context, id string) (*models.User, error) {
-	var user *models.User
+	var user models.User
 	user.UserID = id
 	if err := d.db.First(&user).Error; err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 func (d *datastoreClient) GetByEmailAndPassword(ctx context.Context, user *models.User) (*models.User, error) {
@@ -81,6 +88,14 @@ func (d *datastoreClient) GetByEmailAndPassword(ctx context.Context, user *model
 		return nil, err
 	}
 
+	return user, nil
+}
+
+func (d *datastoreClient) GetByEmail(ctx context.Context, user *models.User) (*models.User, error) {
+	log.Println("Loggin user with: ", user.Email)
+	if err := d.db.Where("email =?", user.Email).First(&user).Error; err != nil {
+		return nil, err
+	}
 	return user, nil
 }
 

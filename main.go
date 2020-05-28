@@ -9,6 +9,7 @@ import (
 	"github.com/claudiocleberson/shippy-service-users/handlers"
 	pb "github.com/claudiocleberson/shippy-service-users/proto/users"
 	"github.com/claudiocleberson/shippy-service-users/repository"
+	"github.com/claudiocleberson/shippy-service-users/services"
 	"github.com/micro/go-micro"
 )
 
@@ -28,14 +29,15 @@ func main() {
 	}
 
 	dbClient := datastore.NewDatastoreClient(dbString)
+	tokenRepo := repository.NewAuthRepository(services.NewTokenService())
 	repo := repository.NewUserRepository(dbClient)
 
 	srv := micro.NewService(
-		micro.Name("shippy-service-users"),
+		micro.Name("shippy.service.users"),
 	)
 	srv.Init()
 
-	userServiceHandler := handlers.NewUserserviceHandler(repo)
+	userServiceHandler := handlers.NewUserserviceHandler(repo, tokenRepo)
 
 	pb.RegisterUserServiceHandler(srv.Server(), userServiceHandler)
 

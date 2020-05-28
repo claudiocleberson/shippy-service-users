@@ -18,7 +18,7 @@ type User struct {
 //Create a UUID for the user ID.
 func (u *User) BeforeCreate(scope *gorm.Scope) error {
 	uuid := uuid.NewUUID()
-	return scope.SetColumn("id", uuid.String())
+	return scope.SetColumn("user_id", uuid.String())
 }
 
 type Users []*User
@@ -54,9 +54,8 @@ func MarshalUserCollection(users []*pb.User) Users {
 func UnmarshalUserCollection(users Users) []*pb.User {
 
 	collection := make([]*pb.User, len(users))
-	for _, u := range users {
-		collection = append(collection, UnmarshalUser(u))
+	for index, u := range users {
+		collection[index] = UnmarshalUser(u)
 	}
-
 	return collection
 }
