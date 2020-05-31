@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/claudiocleberson/shippy-service-users/models"
 	"github.com/claudiocleberson/shippy-service-users/services"
@@ -37,6 +38,17 @@ func (repo *authRepository) Auth(ctx context.Context, user *models.User) (*model
 }
 
 func (repo *authRepository) ValidateToken(ctx context.Context, token *models.Token) (bool, error) {
+
+	claims, err := repo.tokenService.Decode(token.Token)
+	if err != nil {
+		return false, err
+	}
+
+	if claims.User.UserID == "" {
+		return false, errors.New("invalid user")
+	}
+
+	token.Valid = true
 
 	return false, nil
 }

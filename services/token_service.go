@@ -1,6 +1,9 @@
 package services
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/claudiocleberson/shippy-service-users/models"
@@ -30,10 +33,19 @@ type tokenService struct {
 
 func (t *tokenService) Decode(tokenString string) (*CustomClaims, error) {
 
+	tokenString = strings.TrimSpace(tokenString)
+	if tokenString == "" {
+		return nil, errors.New("token can not be empty.")
+	}
+
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return key, nil
 		})
+
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Invalid/Expired token: %v", err))
+	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		return claims, nil
@@ -44,7 +56,7 @@ func (t *tokenService) Decode(tokenString string) (*CustomClaims, error) {
 
 func (t *tokenService) Encode(user *models.User) (string, error) {
 
-	expireToke := time.Now().Add(time.Hour * 72).Unix()
+	expireToke := time.Now().Add(time.Second * 1).Unix()
 
 	claims := CustomClaims{
 		user,

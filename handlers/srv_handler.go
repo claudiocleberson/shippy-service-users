@@ -2,12 +2,19 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/claudiocleberson/shippy-service-users/models"
 	pb "github.com/claudiocleberson/shippy-service-users/proto/users"
 	"github.com/claudiocleberson/shippy-service-users/repository"
+	"github.com/micro/go-micro/broker"
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	topic = "user.created"
 )
 
 type UserServiceHandler interface {
@@ -18,19 +25,23 @@ type UserServiceHandler interface {
 	ValidateToken(context.Context, *pb.Token, *pb.Token) error
 }
 
-func NewUserserviceHandler(userRepo repository.UserRepository, tokenRepo repository.AuthRepository) UserServiceHandler {
-	return userServiceHandler{
+func NewUserserviceHandler(userRepo repository.UserRepository,
+	tokenRepo repository.AuthRepository,
+	broker broker.Broker) UserServiceHandler {
+	return &userServiceHandler{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
+		PubSub:    broker,
 	}
 }
 
 type userServiceHandler struct {
 	userRepo  repository.UserRepository
 	tokenRepo repository.AuthRepository
+	PubSub    broker.Broker
 }
 
-func (s userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.Response) error {
+func (s *userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.Response) error {
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -44,12 +55,13 @@ func (s userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.Re
 		res.User = models.UnmarshalUser(result)
 	}
 
-	//Todo - return the user with id created on DB
+	//Publish the user created event
+	s.publishEvent(res.User)
 
 	return nil
 }
 
-func (s userServiceHandler) Get(ctx context.Context, req *pb.User, res *pb.Response) error {
+func (s *userServiceHandler) Get(ctx context.Context, req *pb.User, res *pb.Response) error {
 	user, err := s.userRepo.Get(ctx, req.Id)
 	if err != nil {
 		return err
@@ -60,7 +72,7 @@ func (s userServiceHandler) Get(ctx context.Context, req *pb.User, res *pb.Respo
 	return nil
 }
 
-func (s userServiceHandler) GetAll(ctx context.Context, req *pb.Request, res *pb.Response) error {
+func (s *userServiceHandler) GetAll(ctx context.Context, req *pb.Request, res *pb.Response) error {
 
 	users, err := s.userRepo.GetAll(ctx)
 	if err != nil {
@@ -72,7 +84,7 @@ func (s userServiceHandler) GetAll(ctx context.Context, req *pb.Request, res *pb
 	return nil
 }
 
-func (s userServiceHandler) Auth(ctx context.Context, req *pb.User, res *pb.Token) error {
+func (s *userServiceHandler) Auth(ctx context.Context, req *pb.User, res *pb.Token) error {
 
 	mUser := models.MarshalUser(req)
 	user, err := s.userRepo.GetByEmail(ctx, mUser)
@@ -94,7 +106,41 @@ func (s userServiceHandler) Auth(ctx context.Context, req *pb.User, res *pb.Toke
 	return nil
 }
 
-func (s userServiceHandler) ValidateToken(ctx context.Context, req *pb.Token, res *pb.Token) error {
+func (s *userServiceHandler) ValidateToken(ctx context.Context, req *pb.Token, res *pb.Token) error {
 
+	//Decode the token
+	_, err := s.tokenRepo.ValidateToken(ctx, models.MarshalToken(req))
+	if err != nil {
+		return err
+	}
+
+	res.Token = req.Token
+	res.Valid = true
+	res.Errors = nil
+
+	return nil
+}
+
+func (s *userServiceHandler) publishEvent(user *pb.User) error {
+
+	//Marshal to JSON string
+	body, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	// Crete a broker message
+	msg := &broker.Message{
+		Header: map[string]string{
+			"id": user.Id,
+		},
+		Body: body,
+	}
+
+	//Publish message to broker
+	if err := s.PubSub.Publish(topic, msg); err != nil {
+		log.Printf("[PUB] failed: %v", err)
+		return err
+	}
 	return nil
 }
