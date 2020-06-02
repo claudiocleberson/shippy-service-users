@@ -38,9 +38,10 @@ func main() {
 	srv.Init()
 
 	// Get instance of the broker using our defaults
-	pubsub := srv.Server().Options().Broker
+	//pubsub := srv.Server().Options().Broker
+	publisher := micro.NewPublisher("user.created", srv.Client())
 
-	userServiceHandler := handlers.NewUserserviceHandler(repo, tokenRepo, pubsub)
+	userServiceHandler := handlers.NewUserserviceHandler(repo, tokenRepo, publisher)
 
 	pb.RegisterUserServiceHandler(srv.Server(), userServiceHandler)
 

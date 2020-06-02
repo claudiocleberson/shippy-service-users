@@ -2,14 +2,13 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/claudiocleberson/shippy-service-users/models"
 	pb "github.com/claudiocleberson/shippy-service-users/proto/users"
 	"github.com/claudiocleberson/shippy-service-users/repository"
-	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -27,18 +26,18 @@ type UserServiceHandler interface {
 
 func NewUserserviceHandler(userRepo repository.UserRepository,
 	tokenRepo repository.AuthRepository,
-	broker broker.Broker) UserServiceHandler {
+	publisher micro.Publisher) UserServiceHandler {
 	return &userServiceHandler{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
-		PubSub:    broker,
+		publisher: publisher,
 	}
 }
 
 type userServiceHandler struct {
 	userRepo  repository.UserRepository
 	tokenRepo repository.AuthRepository
-	PubSub    broker.Broker
+	publisher micro.Publisher
 }
 
 func (s *userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.Response) error {
@@ -56,7 +55,9 @@ func (s *userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.R
 	}
 
 	//Publish the user created event
-	s.publishEvent(res.User)
+	if err := s.publisher.Publish(ctx, res.User); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -121,26 +122,26 @@ func (s *userServiceHandler) ValidateToken(ctx context.Context, req *pb.Token, r
 	return nil
 }
 
-func (s *userServiceHandler) publishEvent(user *pb.User) error {
+// func (s *userServiceHandler) publishEvent(user *pb.User) error {
 
-	//Marshal to JSON string
-	body, err := json.Marshal(user)
-	if err != nil {
-		return err
-	}
+// 	//Marshal to JSON string
+// 	body, err := json.Marshal(user)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// Crete a broker message
-	msg := &broker.Message{
-		Header: map[string]string{
-			"id": user.Id,
-		},
-		Body: body,
-	}
+// 	// Crete a broker message
+// 	msg := &broker.Message{
+// 		Header: map[string]string{
+// 			"id": user.Id,
+// 		},
+// 		Body: body,
+// 	}
 
-	//Publish message to broker
-	if err := s.PubSub.Publish(topic, msg); err != nil {
-		log.Printf("[PUB] failed: %v", err)
-		return err
-	}
-	return nil
-}
+// 	//Publish message to broker
+// 	if err := s.PubSub.Publish(topic, msg); err != nil {
+// 		log.Printf("[PUB] failed: %v", err)
+// 		return err
+// 	}
+// 	return nil
+// }
