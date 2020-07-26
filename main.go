@@ -33,7 +33,7 @@ func main() {
 	repo := repository.NewUserRepository(dbClient)
 
 	srv := micro.NewService(
-		micro.Name("shippy.service.users"),
+		micro.Name("shippy.users"),
 	)
 	srv.Init()
 

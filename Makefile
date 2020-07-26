@@ -13,4 +13,16 @@ build:
 	docker build -t $(PROJECTNAME) .
 run:
 	#Running docker container
-	docker run --network=host -p 50053:50051 -e MICRO_ADDRESS=:50051 -e MICRO_SERVER_ADDRESS=127.0.0.1:8080 -e MICRO_REGISTRY=mdns $(PROJECTNAME) 
+	# docker run 	-p 50053:50051 \
+	# 		--network=host \ 
+	# 		-e MICRO_ADDRESS=:50051 \  
+	# 		-e MICRO_REGISTRY=mdns \
+	# 		$(PROJECTNAME) 
+
+	docker run -p  50053:50051 \
+				--network=host \
+				-e DB_HOST="host=datastore2 port=5432 user=example dbname=users password=example sslmode=disable" \
+	 		    -e MICRO_ADDRESS=:50051\
+			    -e MICRO_REGISTRY=etcd\
+				-e MICRO_REGISTRY_ADDRESS=etcd-server:2379 \
+			    $(PROJECTNAME)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/claudiocleberson/shippy-service-users/models"
 	pb "github.com/claudiocleberson/shippy-service-users/proto/users"
@@ -44,19 +45,19 @@ func (s *userServiceHandler) Create(ctx context.Context, req *pb.User, res *pb.R
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return errors.New(fmt.Sprintf("error hashing password: %v", err))
 	}
 
 	req.Password = string(hashedPass)
 	if result, err := s.userRepo.Create(ctx, models.MarshalUser(req)); err != nil {
-		return err
+		return errors.New(fmt.Sprintf("error creating user: %v", err))
 	} else {
 		res.User = models.UnmarshalUser(result)
 	}
 
 	//Publish the user created event
 	if err := s.publisher.Publish(ctx, res.User); err != nil {
-		return err
+		return errors.New(fmt.Sprintf("error publishing event: %v", err))
 	}
 
 	return nil
